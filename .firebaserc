@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "staging": "secretsanta-234fc",
+    "default": "secretsanta-234fc"
+  }
+}
