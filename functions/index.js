@@ -37,6 +37,8 @@ const start_kb = Markup.inlineKeyboard(
 bot.start((ctx) => {
 	var config = functions.config()
 	if (config) {
+		// it works
+		// to set game start firebase functions:config:set game.state="started"
 		ctx.reply(config)
 	}
 	const welcomMsg = "}{вала Хрысту!"
@@ -198,8 +200,13 @@ bot.on('text', (ctx) => {
 	trace(ctx);
 });
 
-bot.launch();
+//bot.launch();
 
+
+exports.stanta = functions.https.onRequest(
+	(req, res) => bot.handleUpdate(req.body, res)
+)
+bot.telegram.setWebhook(`https://us-central1-secretsanta-234fc.cloudfunctions.net/stanta/AAFQetYA4bgRS`);
 
 exports.getData = admin.firestore().collection('players').get()
 	.then((snapshot) => {
@@ -234,9 +241,9 @@ exports.getReminders = admin.firestore().collection('reminders').get()
 		console.log('Error: ', error);
 	})
 
-exports.hw = functions.https.onRequest((req, res) => {
-	res.send("Hello word")
-})
+// exports.hw = functions.https.onRequest((req, res) => {
+// 	res.send("Hello word")
+// })
 
 
 // just registration
