@@ -369,7 +369,7 @@ function showPhotosOfUser(ctx, currentId, targetId){
 				if(arrayOfPhotos && arrayOfPhotos.length > 0){
 					//console.log(`Avas of ${p.first_name}`, arph)
 					arrayOfPhotos.forEach(uph => {
-						if(uph && uph.file_id && uph.width === 320){  // другие размеры 160 и 640
+						if(uph && uph.file_id && uph.width === 160){  // другие размеры 320 160 и 640
 							//console.log(`Avas of ${p.first_name}`, uph)
 							ctx.telegram.sendPhoto(currentId, uph.file_id , {caption: "Вот фото"});  
 						}
