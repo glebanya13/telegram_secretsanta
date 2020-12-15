@@ -35,7 +35,7 @@ bot.start((ctx) => {
 		+ "<i>Закрытие регистрации <b>18 декабря</b></i> \n"
 		+ "Через несколько дней, когда все зарегистрировались, киберволшебство генерирует тебе пару. \n"
 		+ "<b>Ты получаешь Имя человека, для кого ты будешь Сантой. </b>\n"
-		+ "Надо приготовить небольшой подарок (скажем, ценой до 20 руб). Запаковать, подписать и принести в определенно место <i>до 22 декабря.</i>\n"
+		+ "Надо приготовить небольшой подарок (скажем, ценой до 10 руб). Запаковать, подписать и принести в определенно место <i>до 22 декабря.</i>\n"
 		+ "Место и дату ты получишь позже."
 		+ "\nХочешь быть тайным сантой? Ты с нами?"
 	ctx.replyWithHTML(welcomMsg, start_kb.extra())
@@ -73,10 +73,10 @@ bot.on('text', (ctx, next) => {
 			break;
 		case 'Куда принести?':
 			ctx.reply("Пока не знаю.")
-			ctx.replyWithHTML('Надо купить подарок (недорогой, допустим до 20 руб). Место сбора подарков скажу позже.')
+			ctx.replyWithHTML('Надо купить подарок (недорогой, допустим до 10 руб). Место сбора подарков скажу позже.')
 			break;
 		case 'Когда принести?':
-			ctx.replyWithHTML('Надо купить подарок (недорогой, допустим до 20 руб). <i>Красиво</i> упаковать и <i>подписать</i>. \n<b>До 22 декабря</b> подарок должен быть готов. Место сбора подарков будет указанно позже.')
+			ctx.replyWithHTML('Надо купить подарок (недорогой, допустим до 10 руб). <i>Красиво</i> упаковать и <i>подписать</i>. \n<b>До 22 декабря</b> подарок должен быть готов. Место сбора подарков будет указанно позже.')
 			break;
 		case 'Покинуть игру':
 			ctx.reply('Ты уверен?', leave_kb.extra())
@@ -217,20 +217,24 @@ function registerMe(ctx, next, isParticipant) {
 }
 
 // find target
-async function findTargetPlayer(ctx, santaId) {
-	let players = ctx.session.players
-	if(players && players.length > 0){
-		let player = players.find(f => f.id === santaId)
-		return Promise.resolve(player && player.target)
-	}else{
+async function findTargetPlayer(santaId) {
 		let player = await firestore.collection('players').doc(santaId).get();
 		return player.data().target
-	}
 }
 
 async function whoIsMyTarget(ctx) {
-	let target = await findTargetPlayer(ctx, ctx.message.from.id.toString())
+	let target = {}
+	let players = ctx.session.players
 	//target = {id: "1173843019"} // to test on Angelina Chat ID
+	if(players && players.length > 0){
+		let player = players.find(f => f.id === santaId)
+		if(player && player.target){
+			target = player.target
+		}
+	}else{
+		target = await findTargetPlayer(ctx.message.from.id.toString())
+	}
+
 	if (target && target.id) {
 		ctx.reply(`Тссс... Его зовут: ${target.first_name || ''} ${target.last_name || ''} | ${target.username || ''} \nТолько никому не говори!`)
 		showPhotosOfUser(ctx, ctx.message.from.id, target.id) // 
@@ -238,7 +242,6 @@ async function whoIsMyTarget(ctx) {
 		ctx.reply('Пока не знаю. Игра еще не началась. Подождем всех...')
 	}
 }
-
 
 // generation of pairs
 async function generateTargets(ctx, next) {
