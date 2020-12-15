@@ -28,7 +28,7 @@ bot.start((ctx) => {
 		//ctx.reply(config)
 	}
 	const welcomMsg = "}{вала Хрысту!"
-		
+
 		+ `\nПривет, ${ctx.message.from.first_name} ${ctx.message.from.last_name}!`
 		+ "\nЯ 👼 тайный сантабот!"
 		+ "\nМы играем в Secret Santa. Это просто! Сразу регистрируются все, кто хотят участвовать.\n"
@@ -133,7 +133,7 @@ bot.command('getaphotos', (ctx, next) => { // GetAllPhotos command
 	ctx.reply('working to find all photos')
 	return showPhotos(ctx, next)
 })
-bot.command('help', ctx => ctx.reply("Привет 👼! \nВсе просто. \n/start - для того чтобы присоединиться. \nКак только присоединился - появятся кнопки. Вот и все.") )
+bot.command('help', ctx => ctx.reply("Привет 👼! \nВсе просто. \n/start - для того чтобы присоединиться. \nКак только присоединился - появятся кнопки. Вот и все."))
 //stop game
 bot.command('stop', (ctx) => {
 	if ('572193621' === ctx.message.from.id) { // this is my id
@@ -147,13 +147,17 @@ bot.on('text', (ctx) => {
 	trace(ctx);
 });
 
-//bot.launch();
+bot.launch();
 
 
 exports.stanta = functions.https.onRequest(
 	(req, res) => bot.handleUpdate(req.body, res)
 )
-bot.telegram.setWebhook(`https://us-central1-secretsanta-234fc.cloudfunctions.net/stanta/AAFQetYA4bgRS`);
+//bot.telegram.setWebhook(`https://us-central1-secretsanta-234fc.cloudfunctions.net/stanta/AAFQetYA4bgRS`);
+// https://api.telegram.org/bot1493834992:AAFQetYA4bgRS_frO1glgBIoSyZXTRuRywQ/getMe
+// https://api.telegram.org/bot1493834992:AAFQetYA4bgRS_frO1glgBIoSyZXTRuRywQ/setWebhook?url=https://us-central1-secretsanta-234fc.cloudfunctions.net/stanta
+// https://api.telegram.org/bot1493834992:AAFQetYA4bgRS_frO1glgBIoSyZXTRuRywQ/getWebhookInfo
+
 
 function loadPlayers(ctx, next) {
 	return admin.firestore().collection('players').get()
@@ -161,7 +165,7 @@ function loadPlayers(ctx, next) {
 			ctx.session.players = [...snapshot.docs.map(d => d.data())]
 			if (next) return next()
 			else
-			return ctx.session.players
+				return ctx.session.players
 		})
 		.catch(error => {
 			logError(ctx, error)
@@ -169,10 +173,11 @@ function loadPlayers(ctx, next) {
 		})
 }
 
-function listPlayers(ctx){
-	if(ctx.session.players && ctx.session.players.length > 0){
+function listPlayers(ctx) {
+	if (ctx.session.players && ctx.session.players.length > 0) {
 		ctx.session.players.filter(p => p.isParticipant).forEach(p => ctx.reply(`${p.first_name || ''}_${p.last_name || ''}`))
-	}else{
+	} else {
+		ctx.reply("Таак... под рукой списка нет. Счас сбегаю в базу...")
 		loadPlayers(ctx, () => {
 			listPlayers(ctx)
 		})
@@ -217,29 +222,43 @@ function registerMe(ctx, next, isParticipant) {
 }
 
 // find target
-async function findTargetPlayer(santaId) {
-		let player = await firestore.collection('players').doc(santaId).get();
-		return player.data().target
-}
+// function findTargetPlayer(santaId, ctx, next) {
+// 	return firestore.collection('players').doc(santaId).get().then(player => {
+// 		if(next){
+// 			next(player && player.target)
+// 		}else return player && player.target
+// 	}).catch(error => {
+// 		logError(ctx, error)
+// 		console.log('', error)
+// 		if(next) next()
+// 	});
+// }
 
-async function whoIsMyTarget(ctx) {
+function whoIsMyTarget(ctx) {
 	let target = {}
 	let players = ctx.session.players
 	//target = {id: "1173843019"} // to test on Angelina Chat ID
-	if(players && players.length > 0){
-		let player = players.find(f => f.id === santaId)
-		if(player && player.target){
-			target = player.target
+	if (players && players.length > 0) {
+		let player = players.find(f => f.id === ctx.message.from.id)
+		if (player && player.target) {
+			sendTargetInfo(ctx,target)
+		}else{
+			ctx.reply('Пока не знаю. Игра еще не началась. Подождем всех...')
 		}
-	}else{
-		target = await findTargetPlayer(ctx.message.from.id.toString())
+	} else {
+		ctx.reply("Таак... под рукой списка нет. Счас сбегаю в базу...")
+		loadPlayers(ctx, () => whoIsMyTarget(ctx))
+		//findTargetPlayer(ctx.message.from.id.toString())
 	}
 
+	
+}
+
+function sendTargetInfo(ctx, target){
 	if (target && target.id) {
 		ctx.reply(`Тссс... Его зовут: ${target.first_name || ''} ${target.last_name || ''} | ${target.username || ''} \nТолько никому не говори!`)
+		ctx.reply('Хмм... И где-то было фото... Если найду, пришлю.')
 		showPhotosOfUser(ctx, ctx.message.from.id, target.id) // 
-	} else {
-		ctx.reply('Пока не знаю. Игра еще не началась. Подождем всех...')
 	}
 }
 
@@ -268,7 +287,7 @@ async function generateTargets(ctx, next) {
 	}
 	participants.map(p => `[${p.id} ${p.first_name}_${p.last_name} -> ${p.target.id} ${p.target.first_name}_${p.target.last_name}]`).forEach(m => ctx.reply(m))
 	console.log(participants.map(p => `${p.id} ${p.target.id}`)) // pairs
-	if(next) return next() 
+	if (next) return next()
 	else return "ok"
 }
 
@@ -333,48 +352,48 @@ function logError(ctx, error) {
 	warningChatList.forEach(ch => ctx.telegram.sendMessage(ch, error))
 }
 
-function showPhotos(ctx, next){
+function showPhotos(ctx, next) {
 	let players = ctx.session.players
-	if(players && players.length > 0){
-		
+	if (players && players.length > 0) {
+
 		traceChatList.forEach(ch => {
-	
+
 			players.forEach(async p => {
 				//ctx.telegram.sendMessage(ch, `Avas of ${p.first_name}`)
 				let photo = await ctx.telegram.getUserProfilePhotos(p.id, 0, 0)
 				photo.photos.forEach(arph => {
-					
-					if(arph && arph.length > 0){
+
+					if (arph && arph.length > 0) {
 						console.log(`Avas of ${p.first_name}`, arph)
 						arph.forEach(uph => {
-							if(uph && uph.file_id && uph.width === 320){
+							if (uph && uph.file_id && uph.width === 320) {
 								console.log(`Avas of ${p.first_name}`, uph)
-								ctx.telegram.sendPhoto(ch, uph.file_id , {caption: `Avas of ${p.first_name}`});  
+								ctx.telegram.sendPhoto(ch, uph.file_id, { caption: `Avas of ${p.first_name}` });
 							}
 						})
 					}
 				});
 			})
 		})
-	}else{
+	} else {
 		return loadPlayers(ctx, () => {
 			showPhotos(ctx, next)
 		})
 	}
-	if(next) return next() 
+	if (next) return next()
 	else return "ok"
 }
 
-function showPhotosOfUser(ctx, currentId, targetId){
+function showPhotosOfUser(ctx, currentId, targetId) {
 	ctx.telegram.getUserProfilePhotos(targetId, 0, 0).then((photo) => {
-		if(photo && photo.photos){
+		if (photo && photo.photos) {
 			photo.photos.forEach(arrayOfPhotos => {
-				if(arrayOfPhotos && arrayOfPhotos.length > 0){
+				if (arrayOfPhotos && arrayOfPhotos.length > 0) {
 					//console.log(`Avas of ${p.first_name}`, arph)
 					arrayOfPhotos.forEach(uph => {
-						if(uph && uph.file_id && uph.width === 160){  // другие размеры 320 160 и 640
+						if (uph && uph.file_id && uph.width === 160) {  // другие размеры 320 160 и 640
 							//console.log(`Avas of ${p.first_name}`, uph)
-							ctx.telegram.sendPhoto(currentId, uph.file_id , {caption: "Вот фото"});  
+							ctx.telegram.sendPhoto(currentId, uph.file_id, { caption: "Вот фото" });
 						}
 					})
 				}
@@ -385,5 +404,5 @@ function showPhotosOfUser(ctx, currentId, targetId){
 		logError(ctx, error)
 		console.log('Error in showPhotosOfUser: ', error);
 		throw error
-	});	
+	});
 }
