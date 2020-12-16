@@ -147,17 +147,25 @@ bot.on('text', (ctx) => {
 	trace(ctx);
 });
 
-bot.launch();
+//bot.launch();
 
 
 exports.stanta = functions.https.onRequest(
 	(req, res) => bot.handleUpdate(req.body, res)
 )
-//bot.telegram.setWebhook(`https://us-central1-secretsanta-234fc.cloudfunctions.net/stanta/AAFQetYA4bgRS`);
+//bot.telegram.setWebhook(`https://us-central1-secretsanta-234fc.cloudfunctions.net/stanta`);
 // https://api.telegram.org/bot1493834992:AAFQetYA4bgRS_frO1glgBIoSyZXTRuRywQ/getMe
 // https://api.telegram.org/bot1493834992:AAFQetYA4bgRS_frO1glgBIoSyZXTRuRywQ/setWebhook?url=https://us-central1-secretsanta-234fc.cloudfunctions.net/stanta
 // https://api.telegram.org/bot1493834992:AAFQetYA4bgRS_frO1glgBIoSyZXTRuRywQ/getWebhookInfo
 
+
+bot.launch({
+	webhook: {
+	  domain: 'https://us-central1-secretsanta-234fc.cloudfunctions.net/stanta'
+	}
+  })
+
+  
 
 function loadPlayers(ctx, next) {
 	return admin.firestore().collection('players').get()
