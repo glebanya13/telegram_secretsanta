@@ -35,10 +35,11 @@ bot.start((ctx) => {
 		// to set game start firebase functions:config:set game.state="started"
 		//ctx.reply(config)
 	}
-	const altwelcom = + `\nПривет, ${ctx.message.from.first_name} ${ctx.message.from.last_name}!`
-	+ "\nЯ 👼 тайный сантабот!\n"
-	+ "Игра началась. Присоединиться больше не возможно.\n"
-	+ "Если ты уже в игре, нажми восстановить."
+	
+	const altwelcom = `\nПривет, ${ctx.message.from.first_name} ${ctx.message.from.last_name}!`
+		+ "\nЯ 👼 тайный сантабот!\n"
+		+ "Игра началась. Присоединиться больше не возможно.\n"
+		+ "Если ты уже в игре, нажми восстановить."
 
 	const welcomMsg = "}{вала Хрысту!"
 
@@ -51,13 +52,21 @@ bot.start((ctx) => {
 		+ "Надо приготовить небольшой подарок (скажем, ценой до 10 руб). Запаковать, подписать и принести в определенно место <i>до 22 декабря.</i>\n"
 		+ "Место и дату ты получишь позже."
 		+ "\nХочешь быть тайным сантой? Ты с нами?"
-	ctx.replyWithHTML(welcomMsg, start_kb.extra())
-//	ctx.replyWithHTML(altwelcom, restore_kb.extra())
-	
+	//	ctx.replyWithHTML(welcomMsg, start_kb.extra())
+	ctx.replyWithHTML(altwelcom, restore_kb.extra())
+
 	loadPlayers(ctx)
 })
 
-bot.action('restoreMe', ctx => ctx.reply("Пожалуйста!", start_kb.extra()))
+bot.action('restoreMe', ctx => 
+{
+	let id = ctx.update.callback_query.from.id
+	if(ctx.session.players && ctx.session.players.length > 0 && id && ctx.session.players.filter(p => p.id === id).length > 0){
+		return ctx.reply("Пожалуйста!", start_kb.extra())
+	}else{
+		ctx.reply('Похоже 👼 уже совсем пожждно. Обратись к админу.')
+	}
+})
 
 bot.action('registerMe', (ctx) => {
 	ctx.reply('🙃🥳🙃🥳\nМомент...')
@@ -85,15 +94,16 @@ bot.on('text', (ctx, next) => {
 	switch (ctx.message.text) {
 		case 'Кого поздравить?':
 			ctx.reply('Минуточку...')
-			//ctx.telegram.sendMessage(ctx.message.from.id, "Итак, игра началась. Ты можешь вытянуть Имя! Готов?", target_kb.extra())
-			whoIsMyTarget(ctx)
+			ctx.telegram.sendMessage(ctx.message.from.id, "Итак, игра началась. Ты можешь вытянуть Имя! Готов?", target_kb.extra())
+			//whoIsMyTarget(ctx)
 			break;
 		case 'Куда принести?':
-			ctx.reply("Пока не знаю.")
-			ctx.replyWithHTML('Надо купить подарок (недорогой, допустим до 10 руб). Место сбора подарков скажу позже.')
+			ctx.replyWithHTML("Принеси подарок в Параф.дом, <b>в Концилярию</b>. <b>Марина</b>, секретарь парафии, находится там <i>каждый день с 14 до 18</i>. Для уверенности, можно ей позвонить.")
+			ctx.telegram.sendContact(ctx.message.from.id, "+375292748455", "Марина")
+			ctx.replyWithHTML('Надо купить подарок (недорогой, допустим до 10 руб). Помни, важны не деньги, а кусочек любви. Будь креативен!')
 			break;
 		case 'Когда принести?':
-			ctx.replyWithHTML('Надо купить подарок (недорогой, допустим до 10 руб). <i>Красиво</i> упаковать и <i>подписать</i>. \n<b>До 22 декабря</b> подарок должен быть готов. Место сбора подарков будет указанно позже.')
+			ctx.replyWithHTML('Надо купить подарок (недорогой, допустим до 10 руб). <i>Красиво</i> упаковать и <i>подписать</i>. \n<b>До 22 декабря</b> подарок должен быть готов.')
 			break;
 		case 'Покинуть игру':
 			ctx.reply('Ты уверен?', leave_kb.extra())
@@ -108,9 +118,123 @@ bot.on('text', (ctx, next) => {
 		case 'Вернуться!':
 			ctx.reply('Запусти команду /start')
 			break;
+		default:
+			//ctx.reply('Хорошего Тебе дня!')
+			// {
+			// 	if (ctx.message.from.id === 935549446) {
+			// 		testGen(ctx, parseInt(ctx.message.text))
+			// 	}
+			// }
 	}
 	return next()
 })
+
+function testAll(ctx, next){
+	return admin.firestore().collection('players').get()
+	.then((snapshot) => {
+
+		let all = [...snapshot.docs.map(d => d.data())]
+		ctx.reply(`all count 3 ${all.length}`)
+		all = shuffle(shuffle(all))
+		
+		all.forEach(a => generateForMe(ctx, a, all, next))
+		
+		//if (next) return next()
+		//else
+			return all
+	})
+	.catch(error => {
+		logError(ctx, error)
+		console.log('Error testAll: ', error)
+	})
+}
+
+function testGen(ctx, id, next) {
+	return admin.firestore().collection('players').get()
+		.then((snapshot) => {
+
+			let all = [...snapshot.docs.map(d => d.data())]
+			ctx.reply(`all count 4 ${all.length}`)
+
+			let me = all.find(a => a.id === id)
+			generateForMe(ctx, me, all, next)
+			if (next) return next()
+			else
+				return all
+		})
+		.catch(error => {
+			logError(ctx, error)
+			console.log('Error testGen: ', error)
+		})
+}
+
+function reset(ctx, next) {
+	return admin.firestore().collection('players').get()
+		.then((snapshot) => {
+
+			let all = [...snapshot.docs.map(d => d.data())]
+			ctx.reply(`all count 5 ${all.length}`)
+
+			//Get a new write batch
+			const db = admin.firestore()
+			const batch = db.batch();
+
+			all.forEach(a => {
+				let ref = db.collection('players').doc(a.id.toString());
+				a.hassanta = false
+				a.hastarget = false
+				batch.set(ref, a);
+			})
+
+			// Commit the batch
+			batch.commit().then(function (res) {
+				console.log(res)
+				ctx.reply('batch ok')
+				return res
+				//ctx.reply(res)
+			}).catch(function(error){
+				logError(error)
+				throw error
+			});
+			return all
+			// let part1 = []
+			// for(var i = 0; i < 15;i++){
+			// 	part1.push(all[i])
+			// }
+			// let part2 = []
+			// for(var i = 15; i < 33;i++){
+			// 	part2.push(all[i])
+			// }
+
+			// ctx.reply(part1)
+			// ctx.reply(part2)
+
+			//ctx.reply(all.map(a => `${a.first_name} ${a.last_name} ${a.id}\n`).join(''))
+			// if (next) return next()
+			// else
+			// 	return all
+		})
+		.catch(error => {
+			logError(ctx, error)
+			console.log('Error reset: ', error)
+		})
+}
+
+function updatePlayer(ctx, p) {
+	return admin.firestore.collection('players').doc((p.id).toString()).set(p)
+		.then(function (res) {
+			console.log('updatePlayer Result for target', res)
+			return res
+			// if (next) {
+			// 	return next()
+			// } else return res
+		})
+		.catch(function (error) {
+			logError(ctx, error)
+			console.log('Error in updatePlayer for target: ', error);
+		});
+}
+
 
 bot.action('notRegisterMe', (ctx) => {
 	ctx.reply('Oh! 😢😢😢')
@@ -127,7 +251,7 @@ bot.action('notRegisterMe', (ctx) => {
 })
 
 const adminList = [
-	'572193621', // gleb
+	//'572193621', // gleb
 	'935549446'	 // eshymanovich
 ]
 
@@ -151,48 +275,64 @@ var data = require('./test');
 bot.command('sendstart', (ctx, next) => {
 	ctx.reply('min...')
 	return admin.firestore().collection('players').get()
-	.then((snapshot) => {
-		let all = [...snapshot.docs.map(d => d.data())]
-		ctx.reply(`all count ${all.length}`)
-		let me = 935549446
-		ctx.telegram.sendMessage(me, "Итак, игра началась. Ты можешь вытянуть Имя! Готов?", target_kb.extra())
-		//all.forEach(ch => 
-		//	ctx.telegram.sendMessage(ch.id, "Итак, игра началась. Ты можешь вытянуть Имя! Готов?", target_kb.extra()))
-		if (next) return next()
-		else
-			return all
-	})
-	.catch(error => {
-		logError(ctx, error)
-		console.log('Error sendstart: ', error)
-	})
+		.then((snapshot) => {
+			let all = [...snapshot.docs.map(d => d.data())]
+			ctx.reply(`all count 1 ${all.length}`)
+			//let me = 935549446
+			all.forEach(a => ctx.telegram.sendMessage(a.id, `Доброе утро, ${a.first_name}!\n Итак, перед тобой сантабот 👼🏻 2.0. \n Попробуем снова. Ты можешь вытянуть Имя! Готов?`, target_kb.extra()))
+			//all.forEach(a => ctx.telegram.sendMessage(a, "Я так заигрался, что раздал слишком много имен. В итоге меня наказлаи=( и отправили на ремонт. Прошу прощения. Завтра переиграем."))
+
+			//all.forEach(ch => 
+			//	ctx.telegram.sendMessage(ch.id, "Итак, игра началась. Ты можешь вытянуть Имя! Готов?", target_kb.extra()))
+			// if (next) return next()
+			// else
+				return all
+		})
+		.catch(error => {
+			logError(ctx, error)
+			console.log('Error sendstart: ', error)
+		})
 })
 
-bot.command('testme', (ctx, next) => {
+bot.command('res', (ctx, next) => {
+	reset(ctx)
+	if (next) return next()
+})
+
+bot.command('tm', (ctx, next) => {
+	
+
+testAll(ctx, next)
+
 	//delete ctx.session.targets
 	// let targets = ctx.session.targets ? ctx.session.targets : [...data.targets]
 	//  if(!ctx.session.targets){
 	// 	ctx.session.targets = targets
 	//  }
-	let targets = [...data.targets]
-	targets = shuffle(targets) 
-	for(var i = 0; i < 27; i++){
-		generateForMe(ctx, targets[i], targets, next)
-	}
+	//ctx.telegram.sendContact(ctx.message.from.id, "+375292748455", "Марина")
+	// let targets = [...data.targets]
+	// targets = shuffle(targets) 
+	// for(var i = 0; i < 27; i++){
+	// 	generateForMe(ctx, targets[i], targets, next)
+	// }
 
 	//targets.forEach(tg => generateForMe(ctx, tg, targets, next))
-	if(next) return next()
+	if (next) return next()
 })
 
 bot.command('sessio', ctx => ctx.session && ctx.session.targets && ctx.reply(ctx.session.targets.map(tg => `${tg.first_name}-${tg.hassanta === true}-${tg.hastarget === true}`)))
 
-function generateForMe(ctx, me, targets, next){
+function generateForMe(ctx, me, targets, next) {
 
-	if(me.hastarget){
+	if(!me)
+	return;
+
+	if (me.hastarget) {
+		
 		ctx.reply("По моим данным, ты уже получил инфу.")
 		return;
 	}
-	
+
 	// let me = {
 	// 	"id": 935549446,
 	// 	"last_name": "S",
@@ -200,11 +340,13 @@ function generateForMe(ctx, me, targets, next){
 	// 	"first_name": "Е"
 	// }
 
+	let resultTarget = {}
 	let cand = me.id
 
 	let possible = targets.filter(tg => tg.hassanta !== true)
 	possible = possible.filter(pb => pb.id !== cand)
 
+	//ctx.replyWithHTML(`Возможных <b>${possible.length}</b>`)
 	console.log('possible length', possible.length)
 	if (possible.length === 0) {
 		lgme(ctx, "possible length === 0")
@@ -215,51 +357,69 @@ function generateForMe(ctx, me, targets, next){
 		} else {
 			lgres(ctx, possible[0], me, next)
 			setTargetChoosen(possible[0], me)
-			return sendTargetInfo(ctx, possible[0])
+			resultTarget = possible[0]
 		}
 	}
-	possible.forEach(tg => {
-		if (tg.except) {
-			let variants = possible.filter(tv => tv.id !== tg.id && tv.id !== tg.except)
-			console.log('possible with exept length', variants.length)
-			if (variants.length === 2) {
-				let myexept = variants.filter(v => v.id === tg.except)
-				if (myexept.length > 0) {
-					if (myexept[0].hastarget) {
-						//noproblem
-					} else {
-						variants.forEach(v => v.reserved = [tg.id, tg.except])
+
+
+	if (!resultTarget.id) {
+		possible.push(me)
+		// if(possible.length < 3)
+		// lgme(ctx, `${me.first_name} ${me.id} -> ${JSON.stringify(possible)}`)
+
+		possible.forEach(tg => {
+			if (tg.except) {
+				let variants = possible.filter(tv => tv.id !== tg.id && tv.id !== tg.except)
+				console.log('possible with exept length', variants.length)
+				if (variants.length === 2) {
+					let myexept = possible.filter(v => v.id === tg.except)
+					if (myexept.length > 0) {
+						if (myexept[0].hastarget) {
+							//noproblem
+						} else {
+							variants.forEach(v => v.reserved = [tg.id, tg.except])
+						}
 					}
 				}
+				if (variants.length === 1) {
+					variants[0].reserved = [tg.id, tg.except]
+				}
+			} else {
+				let variants = possible.filter(tv => tv.id !== tg.id)
+				console.log('possible without exept length', variants.length)
+				if (variants.length === 0) {
+					lgme(ctx, "No possible let variants = possible.filter(tv => tv.id !== tg.id)")
+				}
 			}
-			if (variants.length === 1) {
-				variants[0].reserved = [tg.id, tg.except]
-			}
-		} else {
-			let variants = possible.filter(tv => tv.id !== tg.id)
-			console.log('possible without exept length', variants.length)
-			if (variants.length === 0) {
-				lgme(ctx, "No possible let variants = possible.filter(tv => tv.id !== tg.id)")
-			}
-		}
-	})
-	let inclreserved = possible.filter(pb => !pb.reserved || (pb.reserved && pb.reserved.length > 0 && pb.reserved.indexOf(cand) !== -1))
+		})
+		
+		possible = possible.filter(p => p.id !== cand)
+		possible = possible.filter(p => !p.except || (p.except && p.except !== cand))
 
-	console.log('inclreserved length', inclreserved.length)
-	if (inclreserved.length === 0) {
-		lgme(ctx, "all are reserved inclreserved.length === 0")
-	} else {
-		if (inclreserved.length === 1) {
-			setTargetChoosen(inclreserved[0], me)
-			lgres(ctx, inclreserved[0], me, next)
-			return sendTargetInfo(ctx, inclreserved[0])
+		let inclreserved = possible.filter(pb => !pb.reserved || (pb.reserved && (pb.reserved.length > 0) && pb.reserved.indexOf(cand) !== -1))
+
+		console.log('inclreserved length', inclreserved.length)
+		if (inclreserved.length === 0) {
+			lgme(ctx, `all are reserved inclreserved.length === 0 ${cand}`)
+			//lgme(ctx, `possible ${possible.map(p => JSON.stringify(p)).join(',')}`)
 		} else {
-			let chooseIndex = getRandomInt(0, inclreserved.length)
-			
-			setTargetChoosen(inclreserved[chooseIndex], me)
-			lgres(ctx, inclreserved[chooseIndex], me, next)
-			return sendTargetInfo(ctx, inclreserved[chooseIndex])
+			if (inclreserved.length === 1) {
+				setTargetChoosen(inclreserved[0], me)
+				lgres(ctx, inclreserved[0], me, next)
+				resultTarget = inclreserved[0]
+			} else {
+				let chooseIndex = getRandomInt(0, inclreserved.length)
+
+				setTargetChoosen(inclreserved[chooseIndex], me)
+				lgres(ctx, inclreserved[chooseIndex], me, next)
+				resultTarget = inclreserved[chooseIndex]
+			}
 		}
+	}
+
+
+	if (resultTarget && resultTarget.id) {
+		return sendTargetInfo(ctx, resultTarget)
 	}
 	// if(ctx.session.players)
 	// ctx.reply(ctx.session.players)
@@ -271,15 +431,19 @@ function generateForMe(ctx, me, targets, next){
 
 function lgme(ctx, msg) {
 	console.log(`lgme error^ ${msg}`)
-	return ctx.reply(`lgme error^ ${msg}`)
+	return adminList.forEach(a => ctx.telegram.sendMessage(a, `lgme error^ ${msg}`))
 }
 
-function lgres(ctx, target, me, next){
-	return ctx.reply(`Me: ${me.first_name}, Targ: ${target.first_name} - ${(me.except && me.except === target.id) || me.id === target.id ? "bad" : "ok" }`)
+function lgres(ctx, target, me, next) {
+//	if((me.except && me.except === target.id) || me.id === target.id)
+	//return adminList.forEach(a => ctx.telegram.sendMessage(a, `Me: ${me.first_name}, Targ: ${target.first_name} - ${(me.except && me.except === target.id) || me.id === target.id ? "<b>bad</b>" : "ok"}`, 'HTML'))
 	//if(next) return next()
 }
 
 function setTargetChoosen(target, me) {
+	if(target.reserved){
+		delete target.reserved
+	}
 	target.hassanta = true
 	firestore.collection('players').doc((target.id).toString()).set(target)
 		.then(function (res) {
@@ -295,18 +459,21 @@ function setTargetChoosen(target, me) {
 		});
 
 	me.hastarget = true
+	if(me.reserved){
+		delete me.reserved
+	}
 	firestore.collection('players').doc((me.id).toString()).set(me)
-	.then(function (res) {
-		console.log('setTargetChoosen Result for me', res)
-		return res
-		// if (next) {
-		// 	return next()
-		// } else return res
-	})
-	.catch(function (error) {
-		logError(ctx, error)
-		console.log('Error in setTargetChoosen for me: ', error);
-	});
+		.then(function (res) {
+			console.log('setTargetChoosen Result for me', res)
+			return res
+			// if (next) {
+			// 	return next()
+			// } else return res
+		})
+		.catch(function (error) {
+			logError(ctx, error)
+			console.log('Error in setTargetChoosen for me: ', error);
+		});
 	//todo 
 	console.log(target)
 }
@@ -337,22 +504,27 @@ const target_kb = Markup.inlineKeyboard(
 )
 
 bot.action('getMyTarget', (ctx, next) => {
-	return admin.firestore().collection('players').get()
-	.then((snapshot) => {
-		let all = [...snapshot.docs.map(d => d.data())]
-		let me = all.find(f => f.id === ctx.update.callback_query.from.id)
-		ctx.reply(`Всего в игре ${all.length}. Работаю... Может занять некоторе время...`)
-		
-		generateForMe(ctx, me, all, next)
-		
-		if (next) return next()
-		else
-			return all
-	})
-	.catch(error => {
-		logError(ctx, error)
-		console.log('Error loadPlayers: ', error)
-	})
+	let res1 = true
+	//ctx.reply("Похоже я заболел... 😷 Меня счас подлечат, а наутро буду как огурчик. Все переиграем.")
+	if (res1) {
+		return admin.firestore().collection('players').get()
+			.then((snapshot) => {
+				let all = [...snapshot.docs.map(d => d.data())]
+				let me = all.find(f => f.id === ctx.update.callback_query.from.id)
+				ctx.reply(`Всего в игре ${all.length}. Работаю... Может занять некоторе время...`)
+
+				generateForMe(ctx, me, all, next)
+
+				if (next) return next()
+				else
+					return all
+			})
+			.catch(error => {
+				logError(ctx, error)
+				console.log('Error loadPlayers: ', error)
+			})
+	}
+
 
 	//console.log(ctx)
 	//return ctx.reply(ctx.update.callback_query.from)
@@ -365,6 +537,29 @@ bot.command('/gettarget', (ctx, next) => {
 	if (next) return next()
 })
 
+bot.command('/gs', (ctx, next) => {
+	return admin.firestore().collection('players').get()
+		.then((snapshot) => {
+			let all = [...snapshot.docs.map(d => d.data())]
+			ctx.reply(`all count 2 ${all.length}`)
+			ctx.reply(`no santa ${all.filter(a => !a.hassanta).map(am => am.first_name).join(' ')}`)
+
+			ctx.reply(`no target ${all.filter(a => !a.hastarget).map(am => am.first_name + am.last_name).join(' ')}`)
+			//let me = 935549446
+			//all.forEach(a => ctx.telegram.sendMessage(a, "Итак, игра началась. Ты можешь вытянуть Имя! Готов?", target_kb.extra()))
+
+			//all.forEach(ch => 
+			//	ctx.telegram.sendMessage(ch.id, "Итак, игра началась. Ты можешь вытянуть Имя! Готов?", target_kb.extra()))
+			if (next) return next()
+			else
+				return all
+		})
+		.catch(error => {
+			logError(ctx, error)
+			console.log('Error sendstart: ', error)
+		})
+
+})
 
 bot.command('getaphotos', (ctx, next) => { // GetAllPhotos command 
 	ctx.reply('working to find all photos')
@@ -387,11 +582,11 @@ bot.on('text', (ctx) => {
 
 //bot.launch();
 
-bot.telegram.setWebhook(`https://us-central1-secretsanta-234fc.cloudfunctions.net/stanta`);
+ bot.telegram.setWebhook(`https://us-central1-secretsanta-234fc.cloudfunctions.net/stanta`);
 
-exports.stanta = functions.https.onRequest(
-	(req, res) => bot.handleUpdate(req.body, res)
-)
+ exports.stanta = functions.https.onRequest(
+ 	(req, res) => bot.handleUpdate(req.body, res)
+ )
 
 // https://api.telegram.org/bot1493834992:AAFQetYA4bgRS_frO1glgBIoSyZXTRuRywQ/getMe
 // https://api.telegram.org/bot1493834992:AAFQetYA4bgRS_frO1glgBIoSyZXTRuRywQ/setWebhook?url=https://us-central1-secretsanta-234fc.cloudfunctions.net/stanta
@@ -517,7 +712,7 @@ bot.action('genError', ctx => {
 })
 
 bot.action('genOk', ctx => {
-	ctx.reply("Супер! Теперь приготовь подарок. \n> Упокуй. \n> Напиши имя\n> Если ты очень добр, напиши задание, которое надо сделать чтобы получить подарок: например спеть, станцевать, или чтото еще!")
+	ctx.reply("Супер! Теперь приготовь подарок. Помни главное не цена, кусочек любви! \n> Упокуй. \n> Напиши имя\n> Если ты очень добр, напиши задание, которое надо сделать чтобы получить подарок: например спеть, станцевать, или чтото еще!")
 	let from = ctx.update.callback_query.from
 	traceChatList.forEach(ch =>
 		ctx.telegram.sendMessage(ch,
@@ -532,12 +727,12 @@ function sendTargetInfo(ctx, target) {
 		let lname = typeof target.last_name !== "undefined" ? target.last_name : ''
 		let username = typeof target.username !== "undefined" ? target.username : ''
 
-		ctx.reply(`Тссс... Его зовут: ${fname} ${lname} | ${username} \nТолько никому не говори! Запомни хорошенько. Ведь я тоже забуду. Если ты получил себя, нажми кнопку ошибка. Все хорошо?`, genres_kb.extra())
+		ctx.reply(`Тссс... Его зовут: ${fname} ${lname} | ${username} \nТолько никому не говори! Запомни хорошенько. Ведь я тоже забуду. Если ты получил себя, либо два имени либо чтото еще странное, нажми кнопку ошибка. Все хорошо?`, genres_kb.extra())
 		ctx.reply('Хмм... И где-то было фото... Если найду, пришлю.')
-		
+
 		let from = ctx.update.callback_query
-		? ctx.update.callback_query.from
-		: ctx.message.from
+			? ctx.update.callback_query.from
+			: ctx.message.from
 
 		showPhotosOfUser(ctx, from.id, target.id) // 
 	}
@@ -622,11 +817,11 @@ const warningChatList = ['935549446' // eshymanovich chat
 ]
 
 function trace(ctx) {
-	traceChatList.forEach(ch =>
-		ctx.telegram.sendMessage(ch,
-			`Just info: ${ctx.message.from.id}|${ctx.message.from.username}|${ctx.message.from.first_name}_${ctx.message.from.last_name} sent ${ctx.message.text}`
-		)
-	)
+		// traceChatList.forEach(ch =>
+		// 	ctx.telegram.sendMessage(ch,
+		// 		`Just info: ${ctx.message.from.id}|${ctx.message.from.username}|${ctx.message.from.first_name}_${ctx.message.from.last_name} sent ${ctx.message.text}`
+		// 	)
+		// )
 }
 
 
@@ -649,7 +844,8 @@ function showPhotos(ctx, next) {
 					if (arph && arph.length > 0) {
 						console.log(`Avas of ${p.first_name}`, arph)
 						arph.forEach(uph => {
-							if (uph && uph.file_id && uph.width === 320) {
+							if (uph && uph.file_id && uph.width === 320) 
+							{
 								console.log(`Avas of ${p.first_name}`, uph)
 								ctx.telegram.sendPhoto(ch, uph.file_id, { caption: `Avas of ${p.first_name}` });
 							}
