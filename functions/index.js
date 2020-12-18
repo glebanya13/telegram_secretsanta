@@ -19,6 +19,14 @@ const start_kb = Markup.inlineKeyboard(
 		Markup.callbackButton('Нет, пока подумаю.', 'notRegisterMe')
 	]
 )
+
+const restore_kb = Markup.inlineKeyboard(
+	[
+		Markup.callbackButton('Восстановить!', 'restoreMe')
+	]
+)
+
+
 // start bot
 bot.start((ctx) => {
 	var config = functions.config()
@@ -27,6 +35,11 @@ bot.start((ctx) => {
 		// to set game start firebase functions:config:set game.state="started"
 		//ctx.reply(config)
 	}
+	const altwelcom = + `\nПривет, ${ctx.message.from.first_name} ${ctx.message.from.last_name}!`
+	+ "\nЯ 👼 тайный сантабот!\n"
+	+ "Игра началась. Присоединиться больше не возможно.\n"
+	+ "Если ты уже в игре, нажми восстановить."
+
 	const welcomMsg = "}{вала Хрысту!"
 
 		+ `\nПривет, ${ctx.message.from.first_name} ${ctx.message.from.last_name}!`
@@ -39,9 +52,12 @@ bot.start((ctx) => {
 		+ "Место и дату ты получишь позже."
 		+ "\nХочешь быть тайным сантой? Ты с нами?"
 	ctx.replyWithHTML(welcomMsg, start_kb.extra())
+//	ctx.replyWithHTML(altwelcom, restore_kb.extra())
+	
 	loadPlayers(ctx)
 })
 
+bot.action('restoreMe', ctx => ctx.reply("Пожалуйста!", start_kb.extra()))
 
 bot.action('registerMe', (ctx) => {
 	ctx.reply('🙃🥳🙃🥳\nМомент...')
@@ -69,6 +85,7 @@ bot.on('text', (ctx, next) => {
 	switch (ctx.message.text) {
 		case 'Кого поздравить?':
 			ctx.reply('Минуточку...')
+			//ctx.telegram.sendMessage(ctx.message.from.id, "Итак, игра началась. Ты можешь вытянуть Имя! Готов?", target_kb.extra())
 			whoIsMyTarget(ctx)
 			break;
 		case 'Куда принести?':
@@ -129,6 +146,226 @@ bot.command('game', (ctx, next) => {
 })
 
 bot.command('hello', ctx => ctx.reply('hello')) // test comand - hello
+
+var data = require('./test');
+bot.command('sendstart', (ctx, next) => {
+	ctx.reply('min...')
+	return admin.firestore().collection('players').get()
+	.then((snapshot) => {
+		let all = [...snapshot.docs.map(d => d.data())]
+		ctx.reply(`all count ${all.length}`)
+		let me = 935549446
+		ctx.telegram.sendMessage(me, "Итак, игра началась. Ты можешь вытянуть Имя! Готов?", target_kb.extra())
+		//all.forEach(ch => 
+		//	ctx.telegram.sendMessage(ch.id, "Итак, игра началась. Ты можешь вытянуть Имя! Готов?", target_kb.extra()))
+		if (next) return next()
+		else
+			return all
+	})
+	.catch(error => {
+		logError(ctx, error)
+		console.log('Error sendstart: ', error)
+	})
+})
+
+bot.command('testme', (ctx, next) => {
+	//delete ctx.session.targets
+	// let targets = ctx.session.targets ? ctx.session.targets : [...data.targets]
+	//  if(!ctx.session.targets){
+	// 	ctx.session.targets = targets
+	//  }
+	let targets = [...data.targets]
+	targets = shuffle(targets) 
+	for(var i = 0; i < 27; i++){
+		generateForMe(ctx, targets[i], targets, next)
+	}
+
+	//targets.forEach(tg => generateForMe(ctx, tg, targets, next))
+	if(next) return next()
+})
+
+bot.command('sessio', ctx => ctx.session && ctx.session.targets && ctx.reply(ctx.session.targets.map(tg => `${tg.first_name}-${tg.hassanta === true}-${tg.hastarget === true}`)))
+
+function generateForMe(ctx, me, targets, next){
+
+	if(me.hastarget){
+		ctx.reply("По моим данным, ты уже получил инфу.")
+		return;
+	}
+	
+	// let me = {
+	// 	"id": 935549446,
+	// 	"last_name": "S",
+	// 	"isParticipant": true,
+	// 	"first_name": "Е"
+	// }
+
+	let cand = me.id
+
+	let possible = targets.filter(tg => tg.hassanta !== true)
+	possible = possible.filter(pb => pb.id !== cand)
+
+	console.log('possible length', possible.length)
+	if (possible.length === 0) {
+		lgme(ctx, "possible length === 0")
+	}
+	if (possible.length === 1) {
+		if (possible[0].id === cand) {
+			lgme(ctx, "the same target id possiblep[0].id === cand")
+		} else {
+			lgres(ctx, possible[0], me, next)
+			setTargetChoosen(possible[0], me)
+			return sendTargetInfo(ctx, possible[0])
+		}
+	}
+	possible.forEach(tg => {
+		if (tg.except) {
+			let variants = possible.filter(tv => tv.id !== tg.id && tv.id !== tg.except)
+			console.log('possible with exept length', variants.length)
+			if (variants.length === 2) {
+				let myexept = variants.filter(v => v.id === tg.except)
+				if (myexept.length > 0) {
+					if (myexept[0].hastarget) {
+						//noproblem
+					} else {
+						variants.forEach(v => v.reserved = [tg.id, tg.except])
+					}
+				}
+			}
+			if (variants.length === 1) {
+				variants[0].reserved = [tg.id, tg.except]
+			}
+		} else {
+			let variants = possible.filter(tv => tv.id !== tg.id)
+			console.log('possible without exept length', variants.length)
+			if (variants.length === 0) {
+				lgme(ctx, "No possible let variants = possible.filter(tv => tv.id !== tg.id)")
+			}
+		}
+	})
+	let inclreserved = possible.filter(pb => !pb.reserved || (pb.reserved && pb.reserved.length > 0 && pb.reserved.indexOf(cand) !== -1))
+
+	console.log('inclreserved length', inclreserved.length)
+	if (inclreserved.length === 0) {
+		lgme(ctx, "all are reserved inclreserved.length === 0")
+	} else {
+		if (inclreserved.length === 1) {
+			setTargetChoosen(inclreserved[0], me)
+			lgres(ctx, inclreserved[0], me, next)
+			return sendTargetInfo(ctx, inclreserved[0])
+		} else {
+			let chooseIndex = getRandomInt(0, inclreserved.length)
+			
+			setTargetChoosen(inclreserved[chooseIndex], me)
+			lgres(ctx, inclreserved[chooseIndex], me, next)
+			return sendTargetInfo(ctx, inclreserved[chooseIndex])
+		}
+	}
+	// if(ctx.session.players)
+	// ctx.reply(ctx.session.players)
+	//ctx.reply(ctx.session.players.map(w => `${w.first_name}_${w.last_name}_${w.username} ${w.id}\n`).join(' '))
+
+	//ctx.reply('test 1')
+	//if (next) return next()
+}
+
+function lgme(ctx, msg) {
+	console.log(`lgme error^ ${msg}`)
+	return ctx.reply(`lgme error^ ${msg}`)
+}
+
+function lgres(ctx, target, me, next){
+	return ctx.reply(`Me: ${me.first_name}, Targ: ${target.first_name} - ${(me.except && me.except === target.id) || me.id === target.id ? "bad" : "ok" }`)
+	//if(next) return next()
+}
+
+function setTargetChoosen(target, me) {
+	target.hassanta = true
+	firestore.collection('players').doc((target.id).toString()).set(target)
+		.then(function (res) {
+			console.log('setTargetChoosen Result for target', res)
+			return res
+			// if (next) {
+			// 	return next()
+			// } else return res
+		})
+		.catch(function (error) {
+			logError(ctx, error)
+			console.log('Error in setTargetChoosen for target: ', error);
+		});
+
+	me.hastarget = true
+	firestore.collection('players').doc((me.id).toString()).set(me)
+	.then(function (res) {
+		console.log('setTargetChoosen Result for me', res)
+		return res
+		// if (next) {
+		// 	return next()
+		// } else return res
+	})
+	.catch(function (error) {
+		logError(ctx, error)
+		console.log('Error in setTargetChoosen for me: ', error);
+	});
+	//todo 
+	console.log(target)
+}
+
+function shuffle(array) {
+	var currentIndex = array.length, temporaryValue, randomIndex;
+
+	// While there remain elements to shuffle...
+	while (0 !== currentIndex) {
+
+		// Pick a remaining element...
+		randomIndex = Math.floor(Math.random() * currentIndex);
+		currentIndex -= 1;
+
+		// And swap it with the current element.
+		temporaryValue = array[currentIndex];
+		array[currentIndex] = array[randomIndex];
+		array[randomIndex] = temporaryValue;
+	}
+
+	return array;
+}
+
+const target_kb = Markup.inlineKeyboard(
+	[
+		Markup.callbackButton('Да! Супер!', 'getMyTarget')
+	]
+)
+
+bot.action('getMyTarget', (ctx, next) => {
+	return admin.firestore().collection('players').get()
+	.then((snapshot) => {
+		let all = [...snapshot.docs.map(d => d.data())]
+		let me = all.find(f => f.id === ctx.update.callback_query.from.id)
+		ctx.reply(`Всего в игре ${all.length}. Работаю... Может занять некоторе время...`)
+		
+		generateForMe(ctx, me, all, next)
+		
+		if (next) return next()
+		else
+			return all
+	})
+	.catch(error => {
+		logError(ctx, error)
+		console.log('Error loadPlayers: ', error)
+	})
+
+	//console.log(ctx)
+	//return ctx.reply(ctx.update.callback_query.from)
+	//if(next) return next()
+})
+
+bot.command('/gettarget', (ctx, next) => {
+	traceChatList.forEach(ch => ctx.telegram.sendMessage(ch, "Итак, игра началась. Ты можешь вытянуть Имя! Готов?", target_kb.extra()))
+
+	if (next) return next()
+})
+
+
 bot.command('getaphotos', (ctx, next) => { // GetAllPhotos command 
 	ctx.reply('working to find all photos')
 	return showPhotos(ctx, next)
@@ -146,6 +383,7 @@ bot.command('stop', (ctx) => {
 bot.on('text', (ctx) => {
 	trace(ctx);
 });
+
 
 //bot.launch();
 
@@ -166,7 +404,7 @@ exports.stanta = functions.https.onRequest(
 // 	}
 //   })
 
-  
+
 
 function loadPlayers(ctx, next) {
 	return admin.firestore().collection('players').get()
@@ -250,8 +488,8 @@ function whoIsMyTarget(ctx) {
 	if (players && players.length > 0) {
 		let player = players.find(f => f.id === ctx.message.from.id)
 		if (player && player.target) {
-			sendTargetInfo(ctx,target)
-		}else{
+			sendTargetInfo(ctx, target)
+		} else {
 			ctx.reply('Пока не знаю. Игра еще не началась. Подождем всех...')
 		}
 	} else {
@@ -259,15 +497,49 @@ function whoIsMyTarget(ctx) {
 		loadPlayers(ctx, () => whoIsMyTarget(ctx))
 		//findTargetPlayer(ctx.message.from.id.toString())
 	}
-
-	
 }
 
-function sendTargetInfo(ctx, target){
+const genres_kb = Markup.inlineKeyboard(
+	[
+		Markup.callbackButton('Да, отлично!', 'genOk'),
+		Markup.callbackButton('Ошибка!', 'genError')
+	]
+)
+
+bot.action('genError', ctx => {
+	ctx.reply('Понял. Админ скоро свяжется с тобой.')
+	let from = ctx.update.callback_query.from
+	traceChatList.forEach(ch =>
+		ctx.telegram.sendMessage(ch,
+			`${from.id}|${from.username}|${from.first_name}_${from.last_name} gen error`
+		)
+	)
+})
+
+bot.action('genOk', ctx => {
+	ctx.reply("Супер! Теперь приготовь подарок. \n> Упокуй. \n> Напиши имя\n> Если ты очень добр, напиши задание, которое надо сделать чтобы получить подарок: например спеть, станцевать, или чтото еще!")
+	let from = ctx.update.callback_query.from
+	traceChatList.forEach(ch =>
+		ctx.telegram.sendMessage(ch,
+			`${from.id}|${from.username}|${from.first_name}_${from.last_name} gen ok`
+		)
+	)
+})
+
+function sendTargetInfo(ctx, target) {
 	if (target && target.id) {
-		ctx.reply(`Тссс... Его зовут: ${target.first_name || ''} ${target.last_name || ''} | ${target.username || ''} \nТолько никому не говори!`)
+		let fname = typeof target.first_name !== "undefined" ? target.first_name : ''
+		let lname = typeof target.last_name !== "undefined" ? target.last_name : ''
+		let username = typeof target.username !== "undefined" ? target.username : ''
+
+		ctx.reply(`Тссс... Его зовут: ${fname} ${lname} | ${username} \nТолько никому не говори! Запомни хорошенько. Ведь я тоже забуду. Если ты получил себя, нажми кнопку ошибка. Все хорошо?`, genres_kb.extra())
 		ctx.reply('Хмм... И где-то было фото... Если найду, пришлю.')
-		showPhotosOfUser(ctx, ctx.message.from.id, target.id) // 
+		
+		let from = ctx.update.callback_query
+		? ctx.update.callback_query.from
+		: ctx.message.from
+
+		showPhotosOfUser(ctx, from.id, target.id) // 
 	}
 }
 
@@ -357,6 +629,8 @@ function trace(ctx) {
 	)
 }
 
+
+
 function logError(ctx, error) {
 	warningChatList.forEach(ch => ctx.telegram.sendMessage(ch, error))
 }
@@ -399,12 +673,36 @@ function showPhotosOfUser(ctx, currentId, targetId) {
 			photo.photos.forEach(arrayOfPhotos => {
 				if (arrayOfPhotos && arrayOfPhotos.length > 0) {
 					//console.log(`Avas of ${p.first_name}`, arph)
+					let fid = ''
 					arrayOfPhotos.forEach(uph => {
 						if (uph && uph.file_id && uph.width === 160) {  // другие размеры 320 160 и 640
 							//console.log(`Avas of ${p.first_name}`, uph)
-							ctx.telegram.sendPhoto(currentId, uph.file_id, { caption: "Вот фото" });
+							fid = uph.file_id
 						}
 					})
+					if (fid)
+						ctx.telegram.sendPhoto(currentId, fid, { caption: "Вот фото" });
+					else {
+						arrayOfPhotos.forEach(uph => {
+							if (uph && uph.file_id && uph.width === 320) {  // другие размеры 320 160 и 640
+								//console.log(`Avas of ${p.first_name}`, uph)
+								fid = uph.file_id
+							}
+						})
+						if (fid)
+							ctx.telegram.sendPhoto(currentId, fid, { caption: "Вот фото" });
+						else {
+							arrayOfPhotos.forEach(uph => {
+								if (uph && uph.file_id && uph.width === 640) {  // другие размеры 320 160 и 640
+									//console.log(`Avas of ${p.first_name}`, uph)
+									fid = uph.file_id
+								}
+							})
+							if (fid)
+								ctx.telegram.sendPhoto(currentId, fid, { caption: "Вот фото" });
+						}
+					}
+
 				}
 			});
 		}
